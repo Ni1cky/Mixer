@@ -2,7 +2,7 @@ import os.path
 
 from PIL import Image, UnidentifiedImageError
 
-from config import PART_WIDTH, PART_HEIGHT
+from config import PART_WIDTH, PART_HEIGHT, PICTURES_DIRECTORY
 
 
 def images_converted_to_colors() -> bool:
@@ -26,14 +26,14 @@ def get_av_color(image_path, number, resize=True):
     if resize:
         total_pixels = PART_WIDTH * PART_HEIGHT
         img = img.resize((PART_WIDTH, PART_HEIGHT))
-        img.save(f".saved/{number}.jpg")
+        img.save(f".saved/{number}.{image_path.split('.')[-1]}")
     else:
         total_pixels = img.height * img.height
     pixels = img.load()
     av_r = av_g = av_b = 0
     for i in range(PART_HEIGHT):
         for j in range(PART_WIDTH):
-            r, g, b = pixels[j, i]
+            r, g, b, *smth = pixels[j, i]
             av_r += r
             av_g += g
             av_b += b
@@ -43,10 +43,10 @@ def get_av_color(image_path, number, resize=True):
 
 def images_to_av_colors():
     av_colors = []
-    for file_name in os.listdir("pictures/"):
+    for file_name in os.listdir(PICTURES_DIRECTORY):
         name, ext, *smth = file_name.split('.')
         if not smth and ext == "jpg" or ext == "png":
-            av_color = get_av_color(f"pictures/{file_name}", len(av_colors))
+            av_color = get_av_color(f"{PICTURES_DIRECTORY}{file_name}", len(av_colors))
             av_colors.append(av_color)
     return av_colors
 
@@ -71,7 +71,7 @@ def get_rect_av_color(start_i, start_j, pixels):
     for i in range(start_i, start_i + PART_HEIGHT):
         for j in range(start_j, start_j + PART_WIDTH):
             try:
-                r, g, b = pixels[j, i]
+                r, g, b, *smth = pixels[j, i]
                 av_r += r
                 av_g += g
                 av_b += g
@@ -100,7 +100,10 @@ def nearest(cur_rect_av_color, colors):
 
 
 def insert_part(nearest_img_ind, start_i, start_j, pixels):
-    img = Image.open(f".saved/{nearest_img_ind}.jpg")
+    try:
+        img = Image.open(f".saved/{nearest_img_ind}.jpg")
+    except FileNotFoundError:
+        img = Image.open(f".saved/{nearest_img_ind}.png")
     pixels_to_insert = img.load()
     for i in range(PART_HEIGHT):
         for j in range(PART_WIDTH):
@@ -127,7 +130,7 @@ def mix_picture(pic_path, colors):
             cur_rect_av_color = get_rect_av_color(i, j, pixels)
             nearest_img_ind = nearest(cur_rect_av_color, colors)
             insert_part(nearest_img_ind, i, j, pixels)
-    picture.save("result.jpg")
+    picture.save(f"result.{pic_path.split('.')[-1]}")
     return True
 
 
@@ -135,7 +138,7 @@ def main():
     if using_previous():
         colors = read_last_saved()
     else:
-        print("Используемые картинки должны быть в папке pictures")
+        print(f"Используемые картинки должны быть в папке {PICTURES_DIRECTORY}")
         input('"Enter" по готовности\n')
         print("Подготовка...")
         colors = images_to_av_colors()
@@ -144,7 +147,7 @@ def main():
     print("Создание мозайки...")
     res = mix_picture(file_name, colors)
     if res:
-        print("Результат: result.jpg")
+        print(f"Результат: result.{file_name.split('.')[-1]}")
 
 
 if __name__ == '__main__':
